@@ -187,7 +187,7 @@
     variable <- ifelse(input$include_NEPH & !is.null(input$varchoice), input$varchoice, "Z.DC.log")
     legend_label <- ifelse(variable == "Z.DC.log", "Delta C", "PM2.5 Estimate")
     variable_label <- ifelse(variable == "Z.DC.log", "Aethalometer Map", "Nephelometer Map")
-    map_title <- input$community
+    map_title <- in_trip_list()$Community
     map_subtitle <- paste0("Mobile Monitoring \n", variable_label)
     fixed_site_z_score <- ifelse(!is.null(fixed_site_value()), round(fixed_site_value(), 2), NA)
     convert_column <- ifelse(variable == "Z.DC.log", "Var", "PMP")

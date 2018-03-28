@@ -40,7 +40,6 @@ ui <- fluidPage(
       
       # Input the data files ----
       conditionalPanel(condition = "input.tabPanels == 1",
-                       textInput("community", label = "Enter the name of the community:"),
                        fileInput("trip_list", "Choose TripList.csv file:",
                                  accept = c("text/csv", "text/comma-saparated-values, text/plain", ".csv")),
                        helpText("The Trip List file must have column headings:"),
@@ -230,7 +229,7 @@ server <- function(input, output) {
   
   output$downloadMap <- downloadHandler(
     filename = function(){
-      paste0(input$community, 
+      paste0(in_trip_list()$Community, 
             "_Map_",
             ifelse(input$varchoice == "Z.DC.log", "DeltaC", "Bscat"),
             "_",
