@@ -43,7 +43,20 @@ ui <- fluidPage(
                        fileInput("trip_list", "Choose TripList.csv file:",
                                  accept = c("text/csv", "text/comma-saparated-values, text/plain", ".csv")),
                        helpText("The Trip List file must have column headings:"),
-                       helpText("Trip, Date, Community, Night/Day, Code, ON, Start, End, OFF, Direction, DOW"),
+                       helpText("Trip, Date, Community, Night/Day, Code, Start, End, Direction, DayOfWeek"),
+                       numericInput("fixed_site_lat", "Enter the latitude of the fixed site monitor in decimal degrees:", 0),
+                       numericInput("fixed_site_long", "Enter the longitude of the fixed site monitor in decimal degrees:", 0),
+                       
+                       fileInput("AETH_data", 
+                                 "Choose all Aethalometer .txt files:",
+                                 multiple = T,
+                                 accept = c("text/plain", ".txt", ".dat")),
+                       helpText("The file names of input Aethalometer .txt or .dat files must have the following format: Trip1_AE33.dat"),
+                       
+                       checkboxInput("include_NEPH", "Include Nephelometer data?", value = F),
+                       uiOutput("NEPH_conditionalInput"),
+                       uiOutput("NEPH_conditionalInput2"),
+                       
                        checkboxInput("min_lat", "Remove data with latitude smaller than:", value = F),
                        uiOutput("min_lat_conditionalInput"),
                        checkboxInput("max_lat", "Remove data with latitude larger than:", value = F),
@@ -51,24 +64,7 @@ ui <- fluidPage(
                        checkboxInput("min_long", "Remove data with longitude smaller than:", value = F),
                        uiOutput("min_long_conditionalInput"),
                        checkboxInput("max_long", "Remove data with longitude larger than:", value = F),
-                       uiOutput("max_long_conditionalInput"),
-                       fileInput("GPS_data", 
-                                 "Choose all GPS .csv files:",
-                                 multiple = T,
-                                 accept = c("text/csv", "text/comma-saparated-values, text/plain", ".csv")),
-                       helpText("The file names of input GPS .csv files must have the following format: Trip1_GPS.csv"),
-                       helpText("The input GPS .csv files must have column headings:"),
-                       helpText("Date, Time, Latitude, Longitude, Speed(km/hour)"),
-                       
-                       fileInput("AETH_data", 
-                                 "Choose all Aethalometer .txt files:",
-                                 multiple = T,
-                                 accept = c("text/plain", ".txt")),
-                       helpText("The file names of input Aethalometer .txt files must have the following format: Trip1_AE33.csv"),
-                       
-                       checkboxInput("include_NEPH", "Include Nephelometer data?", value = F),
-                       uiOutput("NEPH_conditionalInput"),
-                       uiOutput("NEPH_conditionalInput2")    
+                       uiOutput("max_long_conditionalInput")
       ),
       conditionalPanel(condition = "input.tabPanels == 2",
                        radioButtons("mapchoice",
@@ -76,8 +72,10 @@ ui <- fluidPage(
                                     choiceNames = c("All trips", "Night trips"),
                                     choiceValues = c("all", "night")),
                        uiOutput("NEPH_conditional_varchoice"),
-                       numericInput("fixed_site_lat", "Enter the latitude of the fixed site monitor in decimal degrees:", 0),
-                       numericInput("fixed_site_long", "Enter the longitude of the fixed site monitor in decimal degrees:", 0),
+                       radioButtons("mapzoom",
+                                    "Choose zoom level of the map tiles:",
+                                    choices = 11:13,
+                                    selected = 12),
                        downloadButton('downloadMap', "Download map")
                        )
     ),
@@ -87,12 +85,9 @@ ui <- fluidPage(
       
       # Add a tabset
       tabsetPanel(
-        tabPanel("Input Data Preview", value = 1,
+        tabPanel("Documentation", value = 1,
                  h5("The first six rows of the Trip List input dataset are shown below:"),
                  dataTableOutput("inputtriplist"),
-                 
-                 h5("The first six rows of the GPS input dataset are shown below:"),
-                 dataTableOutput("inputgps"),
                  
                  h5("The first six rows of the Aethalometer input dataset are shown below:"),
                  dataTableOutput("inputaeth"),
@@ -105,7 +100,6 @@ ui <- fluidPage(
                  conditionalPanel(
                    condition = "output.filesUploaded == true",
                    
-                   # textOutput("temp_text"),
                    plotOutput("temp_plot")
                    
                  )),
@@ -130,10 +124,10 @@ server <- function(input, output) {
   # If fileUploaded == true then the additional panels on the UI will show
   output$filesUploaded <- reactive({
     if(input$include_NEPH){
-      test <- all(!is.null(in_trip_list()), !is.null(in_gps_data()), 
+      test <- all(!is.null(in_trip_list()), 
                   !is.null(in_aeth_data()), !is.null(in_neph_data()))
     } else{
-      test <- all(!is.null(in_trip_list()), !is.null(in_gps_data()), 
+      test <- all(!is.null(in_trip_list()), 
                   !is.null(in_aeth_data()))
     }
     return(test)
@@ -151,7 +145,7 @@ server <- function(input, output) {
   
   output$NEPH_conditionalInput2 <- renderUI({
     if(input$include_NEPH){
-      helpText("The file names of input Nephelometer .txt files must have the following format: Trip1_Aurora.csv")
+      helpText("The file names of input Nephelometer .txt files must have the following format: Trip1_NEPH.csv")
     }
   })
   
@@ -200,11 +194,6 @@ server <- function(input, output) {
     head(in_trip_list())
   })
   
-  output$inputgps <- renderDataTable({
-    
-    head(in_gps_data())
-  })
-  
   output$inputaeth <- renderDataTable({
     
     head(in_aeth_data())
@@ -220,12 +209,6 @@ server <- function(input, output) {
     print(trip_map())
     
   }, width = 1000, height = 1000)
-  # 
-  # output$temp_text <- renderText({
-  #   
-  #   summary(trip_polygons()$Z_binned)
-  #   
-  # })
   
   output$downloadMap <- downloadHandler(
     filename = function(){

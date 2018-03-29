@@ -2,7 +2,7 @@ pm25_convert <- reactive({
   
   variable <- ifelse(input$include_NEPH & !is.null(input$varchoice), input$varchoice, "Z.DC.log")
   DF <- data.frame("Value" = c('Monitoring Station', -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 'Min', 'Max'),
-                   "Zscore" = c(fixed_site_value(), 
+                   "Zscore" = c(ifelse(!is.null(fixed_site_value()), fixed_site_value(), NA), 
                            -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 
                            min(trip_polygons()$layer), 
                            max(trip_polygons()$layer)),

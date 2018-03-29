@@ -3,10 +3,10 @@
   create_raster <- reactive({
     
     xtll <- data.frame(matrix(nrow = 2, ncol = 2), stringsAsFactors = F)
-    xtll[1,1] <- c(min(all_trip_data()$Latitude, na.rm = T) - 0.01) # X min
-    xtll[1,2] <- c(min(all_trip_data()$Longitude, na.rm = T) - 0.01)   # y min
-    xtll[2,1] <- c(max(all_trip_data()$Latitude, na.rm = T) + 0.01) # x max
-    xtll[2,2] <- c(max(all_trip_data()$Longitude, na.rm = T) + 0.01)   # y max
+    xtll[1,1] <- c(min(all_trip_data()$Latitude, na.rm = T) - 0.02) # X min
+    xtll[1,2] <- c(min(all_trip_data()$Longitude, na.rm = T) - 0.02)   # y min
+    xtll[2,1] <- c(max(all_trip_data()$Latitude, na.rm = T) + 0.02) # x max
+    xtll[2,2] <- c(max(all_trip_data()$Longitude, na.rm = T) + 0.02)   # y max
     names(xtll) <- c("Latitude", "Longitude")
     
     # Convert to SpatialPoints with world epsg:4326
@@ -59,6 +59,10 @@
                         fun = mean, na.rm = T)
     r.n.trips <- rasterize(x = shp, y = create_raster(), field = shp@data[,'Trip'],
                            fun = function(x, ...){ length(unique(na.omit(x)))}, na.rm = T)
+    
+    # Set the values of cells which were missed on more than 1 trip to NA
+    r.mean[which(r.n.trips@data@values < max(r.n.trips@data@values, na.rm = T) - 1)] <- NA
+    r.count[which(r.n.trips@data@values < max(r.n.trips@data@values, na.rm = T) - 1)] <- NA
 
     # multiply the 2 rasters to create a mean*count layer
     r.MxC <- r.mean * r.count
@@ -122,12 +126,12 @@
       fixed_site$Trip <- 'FS'
       fixed_site$Latitude <- input$fixed_site_lat
       fixed_site$Longitude <- input$fixed_site_long
-      fixed_site$Z.BS.Log <- 100000
-      fixed_site$Z.DC.Log <- 100000
+      fixed_site$Z.BS.log <- 100000
+      fixed_site$Z.DC.log <- 100000
       fixed_site_data <- rbind(trip_data, fixed_site)
       
-      shp <- SpatialPointsDataFrame(coords = data.frame(trip_data$Longitude, trip_data$Latitude),
-                                    data = trip_data,
+      shp <- SpatialPointsDataFrame(coords = data.frame(fixed_site_data$Longitude, fixed_site_data$Latitude),
+                                    data = fixed_site_data,
                                     proj4string = CRS("+proj=longlat +datum=WGS84"))
       shp <- spTransform(shp, CRS("+init=epsg:3005"))
       
@@ -139,6 +143,10 @@
                           fun = mean, na.rm = T)
       r.n.trips <- rasterize(x = shp, y = create_raster(), field = shp@data[,'Trip'],
                              fun = function(x, ...){ length(unique(na.omit(x)))}, na.rm = T)
+      
+      # Set the values of cells which were missed on more than 1 trip to NA
+      r.mean[which(r.n.trips@data@values < max(r.n.trips@data@values, na.rm = T) - 1)] <- NA
+      r.count[which(r.n.trips@data@values < max(r.n.trips@data@values, na.rm = T) - 1)] <- NA
       
       # multiply the 2 rasters to create a mean*count layer
       r.MxC <- r.mean * r.count
@@ -152,7 +160,7 @@
       #   mean layer focally smoothed using a 3x3 grid weighted by the cell counts
       r.mean.SMOOTHED <- r.MxC.SMOOTHED / r.count.SMOOTHED
       
-      # Identify raster cell number for the fixed site
+      # Identify raster cell number for the fixed site and get value
       result <- trip_raster()@data@values[which.max(r.mean.SMOOTHED@data@values)]
     }
     
@@ -174,7 +182,7 @@
                                           max(all_trip_data()$Longitude, na.rm = T) + 0.01)),
                              lat = mean(c(min(all_trip_data()$Latitude, na.rm = T) - 0.01, 
                                           max(all_trip_data()$Latitude, na.rm = T) + 0.01))),
-                  zoom = 12,
+                  zoom = as.integer(input$mapzoom),
                   maptype = "roadmap",
                   color = "color",
                   style = "feature:road|element:labels|visibility:off&style=feature:administrative|element:labels|visibility:off&style=feature:poi|element:labels|visibility:off")
@@ -200,7 +208,7 @@
                    alpha = 0.9, 
                    size = 0) + ## size = 0 to remove the polygon outlines
       scale_fill_manual(values = YlOrBr,
-                        guide = guide_legend(title = paste0("Mean Z Score / ", legend_label)),
+                        guide = guide_legend(title = paste0("Mean Z Score / ", legend_label, " (", "\u03BC", "g/m", "\u00B3", ")")),
                         labels = c(paste0("  < -1.5          / < ", var_values[1]),
                                    paste0("    -1.5 - -1.0   / ", var_values[1], " - ", var_values[2]),
                                    paste0("    -1.0 -  0.5   / ", var_values[2], " - ", var_values[3]),
@@ -237,7 +245,7 @@
                  aes(x = long, y = lat, shape = type),
                  size = 4, fill = "black") +
         scale_shape_manual(name = "", 
-                           labels = paste0("Monitoring Station\n Mean Z Score =", 
+                           labels = paste0("Monitoring Station\n Mean Z Score = ", 
                                             fixed_site_z_score, "\n", legend_label, 
                                            " = ", pm_legend_val, " (", "\u03BC", "g/m", "\u00B3", ")"),
                            values = c(5),
