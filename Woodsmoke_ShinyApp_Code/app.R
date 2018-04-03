@@ -13,12 +13,7 @@ library(hexbin)
 library(Cairo)
 library(grid)
 library(gridExtra)
-library(readr)
-library(dplyr)
-library(tidyr)
-library(tibble)
-library(purrr)
-library(ggplot2)
+library(tidyverse)
 library(stringr)
 library(lubridate)
 select <- dplyr::select
@@ -42,20 +37,16 @@ ui <- fluidPage(
       conditionalPanel(condition = "input.tabPanels == 1",
                        fileInput("trip_list", "Choose TripList.csv file:",
                                  accept = c("text/csv", "text/comma-saparated-values, text/plain", ".csv")),
-                       helpText("The Trip List file must have column headings:"),
-                       helpText("Trip, Date, Community, Night/Day, Code, Start, End, Direction, DayOfWeek"),
                        numericInput("fixed_site_lat", "Enter the latitude of the fixed site monitor in decimal degrees:", 0),
                        numericInput("fixed_site_long", "Enter the longitude of the fixed site monitor in decimal degrees:", 0),
                        
                        fileInput("AETH_data", 
-                                 "Choose all Aethalometer .txt files:",
+                                 "Choose all Aethalometer .dat or .txt files:",
                                  multiple = T,
                                  accept = c("text/plain", ".txt", ".dat")),
-                       helpText("The file names of input Aethalometer .txt or .dat files must have the following format: Trip1_AE33.dat"),
                        
                        checkboxInput("include_NEPH", "Include Nephelometer data?", value = F),
                        uiOutput("NEPH_conditionalInput"),
-                       uiOutput("NEPH_conditionalInput2"),
                        
                        checkboxInput("min_lat", "Remove data with latitude smaller than:", value = F),
                        uiOutput("min_lat_conditionalInput"),
@@ -86,21 +77,24 @@ ui <- fluidPage(
       # Add a tabset
       tabsetPanel(
         tabPanel("Documentation", value = 1,
-                 h5("The first six rows of the Trip List input dataset are shown below:"),
-                 dataTableOutput("inputtriplist"),
+                 h2("These instructions describe how to use this application:"),
+                 p("1. Enter the TripList.csv file. This file should have 1 row per trip and provides summary information about the trip. The Trip List file must have column headings: Trip, Date, Community, Night/Day, Code, Start, End, Direction, DayOfWeek"),
+                 p("2. Enter the latitude and longitude of the fixed site monitor, in decimal degrees. If there is no fixed site monitor, leave the latitude and longitude values as 0."),
+                 p("3. Click 'Browse' and select all of the Aethalometer .dat or .txt files. The file names of input Aethalometer .dat or .txt files must have the following format: Trip1_AE33.dat"),
+                 p("4. If Nephelometer data are available, check the box. Then click 'Browse' and select all of the Nephelometer .txt files. The file names of input Nephelometer .txt files must have the following format: Trip1_NEPH.txt"),
+                 p("5. If there is some data you wish to exclude from the map based on latitude and longitude, check the appropriate box(es) and enter the value(s) in decimal degrees. If not, leave the values as 0."),
+                 p("6. Once all of the files have uploaded, click over to the 'Maps' tab. Please be patient while the map loads.")
                  
-                 h5("The first six rows of the Aethalometer input dataset are shown below:"),
-                 dataTableOutput("inputaeth"),
-                 
-                 uiOutput("NEPH_conditionalInput_table"),
-                 dataTableOutput("inputneph")),
+                 ),
         tabPanel("Maps", value = 2,
                  # Add a conditional panel so that nothing here will show unless
                  # all necessary files have been loaded above
                  conditionalPanel(
                    condition = "output.filesUploaded == true",
                    
-                   plotOutput("temp_plot")
+                   p("For each trip, the values from the instruments were converted to Z scores which compares each value to the average of that trip (e.g. a Z score of 0 means that value was equal to the mean of that trip, a Z score of 1 means the value was one standard deviation higher than the mean, and a Z score of -1.5 means the value was one and a half standard deviations less than the mean). The Z scores from all trips were then averaged across the route and this is what is shown in the map. Because these Z scores are calculated on an exponential scale, we show Delta C or PM2.5 concentration estimates on the legend corresponding to what these average Z scores were roughly equal to across the monitoring hours. This is to add context to the shading and make it easier to understand, but remember these are just estimates and are intended to be used to compare two spots on the map rather than taking them as a hard value."),
+                   
+                   plotOutput("current_map")
                    
                  )),
         id = "tabPanels")
@@ -143,24 +137,12 @@ server <- function(input, output) {
     }
   })
   
-  output$NEPH_conditionalInput2 <- renderUI({
-    if(input$include_NEPH){
-      helpText("The file names of input Nephelometer .txt files must have the following format: Trip1_NEPH.csv")
-    }
-  })
-  
   output$NEPH_conditional_varchoice <- renderUI({
     if(input$include_NEPH){
       radioButtons("varchoice",
                    "Variable to map:",
-                   choiceNames = c("BS", "DC"),
+                   choiceNames = c("PM2.5", "Delta C"),
                    choiceValues = c("Z.BS.log", "Z.DC.log"))
-    }
-  })
-  
-  output$NEPH_conditionalInput_table <- renderUI({
-    if(input$include_NEPH){
-      h5("The first six rows of the Nephelometer input dataset are shown below:")
     }
   })
   
@@ -188,25 +170,14 @@ server <- function(input, output) {
     }
   })
   
-  # Show the head of the data files in the first tab panel
-  output$inputtriplist <- renderDataTable({
+  output$current_map <- renderPlot({
     
-    head(in_trip_list())
-  })
-  
-  output$inputaeth <- renderDataTable({
-    
-    head(in_aeth_data())
-  })
-  
-  output$inputneph <- renderDataTable({
-    
-    head(in_neph_data())
-  })
-  
-  output$temp_plot <- renderPlot({
-    
+    variable <- ifelse(input$include_NEPH & !is.null(input$varchoice), input$varchoice, "Z.DC.log")
     print(trip_map())
+    grid.text(label = ifelse(variable == "Z.DC.log", 
+                             "This map shows the average spatial patterns captured by an Aethalometer \nwhich measures a signal specific to woodsmoke called 'Delta C'.",
+                             "This map shows the average spatial patterns captured by a Nephelometer \nwhich measures an estimate of total PM2.5 levels."), 
+              x = unit(0.04, "npc"), y = unit(0.78, "npc"), hjust = 0)
     
   }, width = 1000, height = 1000)
   
@@ -214,15 +185,21 @@ server <- function(input, output) {
     filename = function(){
       paste0(in_trip_list()$Community, 
             "_Map_",
-            ifelse(input$varchoice == "Z.DC.log", "DeltaC", "Bscat"),
+            ifelse(input$varchoice == "Z.DC.log", "DeltaC", "PM25"),
             "_",
-            ifelse(input$mapchoice == "night", "Night", "All"),
+            ifelse(input$mapchoice == "night", "NightTrips", "AllTrips"),
             ".pdf")
     },
     
     content = function(file){
-      pdf(file)
+      variable <- ifelse(input$include_NEPH & !is.null(input$varchoice), input$varchoice, "Z.DC.log")
+      
+      pdf(file, width = 11, height = 8.5)
       print(trip_map())
+      grid.text(label = ifelse(variable == "Z.DC.log", 
+                               "This map shows the average spatial patterns captured by an Aethalometer \nwhich measures a signal specific to woodsmoke called 'Delta C'.",
+                               "This map shows the average spatial patterns captured by a Nephelometer \nwhich measures an estimate of total PM2.5 levels."), 
+                x = unit(0.04, "npc"), y = unit(0.78, "npc"), hjust = 0)
       dev.off()
     }
   )
