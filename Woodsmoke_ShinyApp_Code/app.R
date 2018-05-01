@@ -37,8 +37,9 @@ ui <- fluidPage(
       conditionalPanel(condition = "input.tabPanels == 1",
                        fileInput("trip_list", "Choose TripList.csv file:",
                                  accept = c("text/csv", "text/comma-saparated-values, text/plain", ".csv")),
-                       numericInput("fixed_site_lat", "Enter the latitude of the fixed site monitor in decimal degrees:", 0),
-                       numericInput("fixed_site_long", "Enter the longitude of the fixed site monitor in decimal degrees:", 0),
+                       checkboxInput("include_fixed_site", "Include a fixed site monitor?", value = F),
+                       uiOutput("fixed_site_conditionalInput_lat"),
+                       uiOutput("fixed_site_conditionalInput_long"),
                        
                        fileInput("AETH_data", 
                                  "Choose all Aethalometer .dat or .txt files:",
@@ -134,6 +135,18 @@ server <- function(input, output) {
                 "Choose all Nethelometer .txt files:",
                 multiple = T,
                 accept = c("text/plain", ".txt"))
+    }
+  })
+  
+  output$fixed_site_conditionalInput_lat <- renderUI({
+    if(input$include_fixed_site){
+      numericInput("fixed_site_lat", "Enter the latitude of the fixed site monitor in decimal degrees:", 0)
+    }
+  })
+  
+  output$fixed_site_conditionalInput_long <- renderUI({
+    if(input$include_fixed_site){
+      numericInput("fixed_site_long", "Enter the longitude of the fixed site monitor in decimal degrees:", 0)
     }
   })
   

@@ -114,9 +114,16 @@
   
   fixed_site_value <- reactive({
     
-    if(!is.null(input$fixed_site_long) & !is.null(input$fixed_site_lat) & 
-       input$fixed_site_long != 0 & input$fixed_site_lat != 0 &
-       !is.na(input$fixed_site_long) & !is.na(input$fixed_site_lat)){
+    if(is.null(input$fixed_site_long) & is.null(input$fixed_site_lat)){
+      fixed_site_long = 0
+      fixed_site_lat = 0
+    } else{
+      fixed_site_long = input$fixed_site_long
+      fixed_site_lat = input$fixed_site_lat
+    }
+    
+    if(fixed_site_long != 0 & fixed_site_lat != 0 &
+       !is.na(fixed_site_long) & !is.na(fixed_site_lat)){
     
       trip_data <- all_trip_data() %>%
         filter(!is.na(Latitude) & !is.na(Longitude))
@@ -124,8 +131,8 @@
       # Add fake record at fixed site
       fixed_site <- trip_data[1,]
       fixed_site$Trip <- 'FS'
-      fixed_site$Latitude <- input$fixed_site_lat
-      fixed_site$Longitude <- input$fixed_site_long
+      fixed_site$Latitude <- fixed_site_lat
+      fixed_site$Longitude <- fixed_site_long
       fixed_site$Z.BS.log <- 100000
       fixed_site$Z.DC.log <- 100000
       fixed_site_data <- rbind(trip_data, fixed_site)
@@ -235,18 +242,25 @@
             legend.key.height = unit(40, units = "pt")) +
       ggtitle(map_title, subtitle = map_subtitle)
     
-    if(!is.null(input$fixed_site_long) & !is.null(input$fixed_site_lat) & 
-       input$fixed_site_long != 0 & input$fixed_site_lat != 0 &
-       !is.na(input$fixed_site_long) & !is.na(input$fixed_site_lat)){
-      final_map <- final_map + 
-        geom_point(data = data.frame(long = input$fixed_site_long,
-                                     lat = input$fixed_site_lat,
+    if(is.null(input$fixed_site_long) & is.null(input$fixed_site_lat)){
+      fixed_site_long = 0
+      fixed_site_lat = 0
+    } else{
+      fixed_site_long = input$fixed_site_long
+      fixed_site_lat = input$fixed_site_lat
+    }
+    
+    if(fixed_site_long != 0 & fixed_site_lat != 0 &
+       !is.na(fixed_site_long) & !is.na(fixed_site_lat)){
+      final_map <- final_map +
+        geom_point(data = data.frame(long = fixed_site_long,
+                                     lat = fixed_site_lat,
                                      type = "Fixed site monitor"),
-                 aes(x = long, y = lat, shape = type),
-                 size = 4, fill = "black") +
-        scale_shape_manual(name = "", 
-                           labels = paste0("Monitoring Station\n Mean Z Score = ", 
-                                            fixed_site_z_score, "\n", legend_label, 
+                   aes(x = long, y = lat, shape = type),
+                   size = 4, fill = "black") +
+        scale_shape_manual(name = "",
+                           labels = paste0("Monitoring Station\n Mean Z Score = ",
+                                           fixed_site_z_score, "\n", legend_label,
                                            " = ", pm_legend_val, " (", "\u03BC", "g/m", "\u00B3", ")"),
                            values = c(5),
                            guide = guide_legend(order = 0))
