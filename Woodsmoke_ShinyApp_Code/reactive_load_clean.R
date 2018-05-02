@@ -33,6 +33,10 @@
                            'X1', 'X2', 'X3', 'Time(UTC)', 'Latitude', 'NS', 'Longitude', 'EW', 'FixQuality', 
                            'NoSatellites', 'HDOP', 'Altitude', 'M1', 'H_WGS84', 'M2')) %>%
       map2(names(aeth_data), ~ mutate(.x, Trip = paste(str_split_fixed(.y, "_|\\.", n = 4)[1,1:2], collapse = "_"))) %>%
+      # Remove any rows that have NA for latitude and longitude - solves Golden Trip2 problem and
+      # can't use those rows anyway. 
+      map(~ filter(.x, !(is.na(Latitude) & is.na(Longitude)))) %>%
+      map(~ mutate(.x, Altitude = as.numeric(Altitude))) %>%
       map(~ select(.x, Date = `Date(yyyy/MM/dd)`, Time = `Time(hh:mm:ss)`,
                    UV_C = BC1, BC = BC6, Latitude, NS, Longitude, EW, Altitude, Trip)) %>%
       bind_rows() %>%
