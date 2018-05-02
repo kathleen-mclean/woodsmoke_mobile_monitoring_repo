@@ -100,7 +100,7 @@
         layer >= 0.5 & layer < 1 ~ 6,
         layer >= 1 & layer < 1.5 ~ 7,
         layer >= 1.5 ~ 8),
-        Z_binned = as.factor(Z_binned))
+        Z_binned = factor(Z_binned, levels = c(1:8)))
     
     binned_result
   })
