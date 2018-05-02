@@ -15,7 +15,7 @@
     req(inFile)
     
     aeth_data <- map(1:nrow(inFile), ~ read.table(file = inFile[[.x, "datapath"]],
-                                                  header = F, skip = 6, 
+                                                  header = F, skip = 6, fill = T,
                                                   stringsAsFactors = F))
     names(aeth_data) <- inFile[["name"]]
     
