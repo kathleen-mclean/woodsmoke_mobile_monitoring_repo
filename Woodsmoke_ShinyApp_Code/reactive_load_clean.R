@@ -32,7 +32,7 @@
                            'BC7', 'K1', 'K2', 'K3', 'K4', 'K5', 'K6', 'K7', 'TapeAdvCount', 
                            'X1', 'X2', 'X3', 'Time(UTC)', 'Latitude', 'NS', 'Longitude', 'EW', 'FixQuality', 
                            'NoSatellites', 'HDOP', 'Altitude', 'M1', 'H_WGS84', 'M2')) %>%
-      map2(names(aeth_data), ~ mutate(.x, Trip = str_split_fixed(.y, "\\.", n = 2)[1,1])) %>%
+      map2(names(aeth_data), ~ mutate(.x, Trip = paste(str_split_fixed(.y, "_|\\.", n = 4)[1,1:2], collapse = "_"))) %>%
       map(~ select(.x, Date = `Date(yyyy/MM/dd)`, Time = `Time(hh:mm:ss)`,
                    UV_C = BC1, BC = BC6, Latitude, NS, Longitude, EW, Altitude, Trip)) %>%
       bind_rows() %>%
@@ -73,7 +73,7 @@
     names(neph_data) <- inFile[["name"]]
     
     neph_data <- neph_data %>%
-      map2(names(neph_data), ~ mutate(.x, Trip = str_split_fixed(.y, "\\.", n = 2)[1,1])) %>%
+      map2(names(neph_data), ~ mutate(.x, Trip = paste(str_split_fixed(.y, "_|\\.", n = 4)[1,1:2], collapse = "_"))) %>%
       bind_rows() %>%
       rename(DateTime = X1, Bscat = X2, SampleT = X3, EnclosureT = X4,
              RH = X5, Pressure = X6) %>%
