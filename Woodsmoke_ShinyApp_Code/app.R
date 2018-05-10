@@ -24,6 +24,21 @@ load("data/Neph.to.BAM.PM25.Conversions.rdata")
 # Define UI for the app ----
 ui <- fluidPage(
   
+  # change CSS for the progress bar location and size
+  tags$head(
+    tags$style(
+      HTML(".shiny-notification {
+           height: 100px;
+           width: 800px;
+           position:fixed;
+           top: calc(50% - 50px);;
+           left: calc(60% - 400px);;
+           }
+           "
+      )
+      )
+      ),
+  
   # App title ----
   titlePanel("Woodsmoke Mobile Monitoring Data Display"),
   
@@ -186,12 +201,18 @@ server <- function(input, output) {
   output$current_map <- renderPlot({
     
     variable <- ifelse(input$include_NEPH & !is.null(input$varchoice), input$varchoice, "Z.DC.log")
-    print(trip_map())
+    
+    withProgress(message = "Map loading", value = 0.5, {
+      
+      currentmap <- trip_map()
+      
+    })
+    
+    print(currentmap)
     grid.text(label = ifelse(variable == "Z.DC.log", 
                              "This map shows the average spatial patterns captured by an Aethalometer \nwhich measures a signal specific to woodsmoke called 'Delta C'.",
                              "This map shows the average spatial patterns captured by a Nephelometer \nwhich measures an estimate of total PM2.5 levels."), 
               x = unit(0.04, "npc"), y = unit(0.78, "npc"), hjust = 0)
-    
   }, width = 1000, height = 1000)
   
   output$downloadMap <- downloadHandler(
