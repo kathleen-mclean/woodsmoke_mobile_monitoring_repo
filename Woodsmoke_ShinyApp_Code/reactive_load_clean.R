@@ -5,7 +5,15 @@
     
     req(inFile)
     
-    trip_data <- read_csv(file = inFile$datapath)
+    trip_data <- read_csv(file = inFile$datapath, 
+                          col_types = cols(Date = col_date(format = "%m/%d/%Y")))
+    
+    validate(
+      need(all(c("Date", "Community", "Night/Day", "Start", "End") %in% names(trip_data)) != F, 
+           "Trip list .csv file does not have the necessary columns.")
+      )
+    
+    trip_data
     
   })
 
@@ -13,6 +21,11 @@
     inFile <- input$AETH_data
     
     req(inFile)
+    validate(
+      need(all(unlist(lapply(inFile[["name"]],
+                      function(x) grepl(paste0("Trip", "[0-9][0-9]*", "_AE33_", "20[0-9][0-9][0-9][0-9][0-9][0-9]"), x)))) != F,
+           "Check that Aethalometer file names are formatted correctly")
+    )
     
     aeth_data <- map(1:nrow(inFile), ~ read.table(file = inFile[[.x, "datapath"]],
                                                   header = F, skip = 6, fill = T,
@@ -69,6 +82,11 @@
     inFile <- input$NEPH_data
     
     req(inFile)
+    validate(
+      need(all(unlist(lapply(inFile[["name"]],
+                             function(x) grepl(paste0("Trip", "[0-9][0-9]*", "_NEPH_", "20[0-9][0-9][0-9][0-9][0-9][0-9]"), x)))) != F,
+           "Check that Nephelometer file names are formatted correctly")
+    )
     
     neph_data <- map(1:nrow(inFile), ~ read_delim(file = inFile[[.x, "datapath"]],
                                                   delim = ",",

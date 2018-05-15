@@ -94,12 +94,23 @@ ui <- fluidPage(
       tabsetPanel(
         tabPanel("Documentation", value = 1,
                  h2("These instructions describe how to use this application:"),
-                 p("1. Enter the TripList.csv file. This file should have 1 row per trip and provides summary information about the trip. The Trip List file must have column headings: Trip, Date, Community, Night/Day, Code, Start, End, Direction, DayOfWeek"),
+                 p("1. Enter the TripList.csv file. This file should have 1 row per trip and provides summary information about the trip. The Trip List file must have column headings: Trip, Date, Community, Night/Day, Code, Start, End, Direction, DayOfWeek. The Date column must be formatted as MM/DD/YYYY."),
                  p("2. Check the box if there is a fixed site monitor to include. Then, enter the latitude and longitude of the fixed site monitor, in decimal degrees."),
                  p("3. Click 'Browse' and select all of the Aethalometer .dat or .txt files. The file names of input Aethalometer .dat or .txt files must have the following format: Trip1_AE33_YYYYMMDD.dat where YYYYMMDD is a date."),
                  p("4. If Nephelometer data are available, check the box. Then click 'Browse' and select all of the Nephelometer .txt files. The file names of input Nephelometer .txt files must have the following format: Trip1_NEPH_YYYYMMDD.txt where YYYYMMDD is a date."),
                  p("5. If there is some data you wish to exclude from the map based on latitude and longitude, check the appropriate box(es) and enter the value(s) in decimal degrees. If not, leave the values as 0."),
-                 p("6. Once all of the files have uploaded, click over to the 'Maps' tab. Please be patient while the map loads.")
+                 p("6. Once all of the files have uploaded, click over to the 'Maps' tab. Please be patient while the map loads."),
+                 
+                 h2("Input data check:"),
+                 
+                 h5("Trip List:"),
+                 textOutput("inputtriplist"),
+                 
+                 h5("Aethalometer dataset:"),
+                 textOutput("inputaeth"),
+                 
+                 uiOutput("NEPH_conditionalInput_text"),
+                 textOutput("inputneph")
                  
                  ),
         tabPanel("Maps", value = 2,
@@ -150,6 +161,12 @@ server <- function(input, output) {
                 "Choose all Nethelometer .txt files:",
                 multiple = T,
                 accept = c("text/plain", ".txt"))
+    }
+  })
+  
+  output$NEPH_conditionalInput_text <- renderUI({
+    if(input$include_NEPH){
+      h5("Nephelometer dataset:")
     }
   })
   
@@ -237,6 +254,23 @@ server <- function(input, output) {
       dev.off()
     }
   )
+  
+  # Show the head of the data files in the first tab panel
+  output$inputtriplist <- renderText({
+    if("data.frame" %in% class(in_trip_list())){
+      "Uploaded correctly."
+    }
+  })
+  output$inputaeth <- renderText({
+    if("data.frame" %in% class(in_aeth_data())){
+      "Uploaded correctly."
+    }
+  })
+  output$inputneph <- renderText({
+    if("data.frame" %in% class(in_neph_data())){
+      "Uploaded correctly."
+    }
+  })
   
 }
 
