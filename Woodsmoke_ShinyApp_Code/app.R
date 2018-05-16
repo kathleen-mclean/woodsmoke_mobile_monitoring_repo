@@ -52,9 +52,7 @@ ui <- fluidPage(
       conditionalPanel(condition = "input.tabPanels == 1",
                        fileInput("trip_list", "Choose TripList.csv file:",
                                  accept = c("text/csv", "text/comma-saparated-values, text/plain", ".csv")),
-                       checkboxInput("include_fixed_site", "Include a fixed site monitor?", value = F),
-                       uiOutput("fixed_site_conditionalInput_lat"),
-                       uiOutput("fixed_site_conditionalInput_long"),
+                       
                        
                        fileInput("AETH_data", 
                                  "Choose all Aethalometer .dat or .txt files:",
@@ -63,6 +61,10 @@ ui <- fluidPage(
                        
                        checkboxInput("include_NEPH", "Include Nephelometer data?", value = F),
                        uiOutput("NEPH_conditionalInput"),
+                       
+                       checkboxInput("include_fixed_site", "Include a fixed site monitor?", value = F),
+                       uiOutput("fixed_site_conditionalInput_lat"),
+                       uiOutput("fixed_site_conditionalInput_long"),
                        
                        checkboxInput("min_lat", "Remove data with latitude smaller than:", value = F),
                        uiOutput("min_lat_conditionalInput"),
