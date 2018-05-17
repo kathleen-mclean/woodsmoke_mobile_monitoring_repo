@@ -99,7 +99,7 @@ ui <- fluidPage(
                  p("1. Enter the TripList.csv file. This file should have 1 row per trip and provides summary information about the trip. The Trip List file must have column headings: Trip, Date, Community, Night/Day, Code, Start, End, Direction, DayOfWeek. The Date column must be formatted as MM/DD/YYYY."),
                  p("2. Click 'Browse' and select all of the Aethalometer .dat or .txt files. The file names of input Aethalometer .dat or .txt files must have the following format: Trip1_AE33_YYYYMMDD.dat where YYYYMMDD is a date."),
                  p("3. If Nephelometer data are available, check the box. Then click 'Browse' and select all of the Nephelometer .txt files. The file names of input Nephelometer .txt files must have the following format: Trip1_NEPH_YYYYMMDD.txt where YYYYMMDD is a date."),
-                 p("4. Check the box if you want to add the location of a fixed site monitor to the map. Then, enter the latitude and longitude of the fixed site monitor, in decimal degrees."),
+                 p("4. Check the box if you want to add the location of a fixed site monitor to the map. Then, enter the latitude and longitude of the fixed site monitor, in decimal degrees with 4+ decimal places."),
                  p("5. If there is some data you wish to exclude from the map based on latitude and longitude, check the appropriate box(es) and enter the value(s) in decimal degrees. If not, leave the values as 0."),
                  p("6. Once all of the files have uploaded, click over to the 'Maps' tab. Please be patient while the map loads."),
                  
@@ -174,7 +174,7 @@ server <- function(input, output) {
   
   output$fixed_site_conditionalInput_lat <- renderUI({
     if(input$include_fixed_site){
-      numericInput("fixed_site_lat", "Enter the latitude of the fixed site monitor in decimal degrees:", 0)
+      numericInput("fixed_site_lat", "Enter the latitude of the fixed site monitor in decimal degrees (with 4+ decimal places):", 0)
     }
   })
   
