@@ -62,7 +62,7 @@ ui <- fluidPage(
                        checkboxInput("include_NEPH", "Include Nephelometer data?", value = F),
                        uiOutput("NEPH_conditionalInput"),
                        
-                       checkboxInput("include_fixed_site", "Include a fixed site monitor?", value = F),
+                       checkboxInput("include_fixed_site", "Add the location of a fixed site monitor?", value = F),
                        uiOutput("fixed_site_conditionalInput_lat"),
                        uiOutput("fixed_site_conditionalInput_long"),
                        
