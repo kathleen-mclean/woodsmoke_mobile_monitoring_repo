@@ -17,6 +17,7 @@ library(tidyverse)
 library(stringr)
 library(lubridate)
 select <- dplyr::select
+extract <- raster::extract
 
 # Load the Neph to PM2.5 conversions data
 load("data/Neph.to.BAM.PM25.Conversions.rdata")
@@ -52,7 +53,6 @@ ui <- fluidPage(
       conditionalPanel(condition = "input.tabPanels == 1",
                        fileInput("trip_list", "Choose TripList.csv file:",
                                  accept = c("text/csv", "text/comma-saparated-values, text/plain", ".csv")),
-                       
                        
                        fileInput("AETH_data", 
                                  "Choose all Aethalometer .dat or .txt files:",
@@ -112,7 +112,13 @@ ui <- fluidPage(
                  textOutput("inputaeth"),
                  
                  uiOutput("NEPH_conditionalInput_text"),
-                 textOutput("inputneph")
+                 textOutput("inputneph"),
+                 
+                 uiOutput("fs_lat_conditionalInput_text"),
+                 textOutput("inputfslat"),
+                 
+                 uiOutput("fs_long_conditionalInput_text"),
+                 textOutput("inputfslong")
                  
                  ),
         tabPanel("Maps", value = 2,
@@ -172,6 +178,18 @@ server <- function(input, output) {
     }
   })
   
+  output$fs_lat_conditionalInput_text <- renderUI({
+    if(input$include_fixed_site){
+      h5("Fixed site latitude:")
+    }
+  })
+  
+  output$fs_long_conditionalInput_text <- renderUI({
+    if(input$include_fixed_site){
+      h5("Fixed site longitude:")
+    }
+  })
+  
   output$fixed_site_conditionalInput_lat <- renderUI({
     if(input$include_fixed_site){
       numericInput("fixed_site_lat", "Enter the latitude of the fixed site monitor in decimal degrees (with 4+ decimal places):", 0)
@@ -180,7 +198,7 @@ server <- function(input, output) {
   
   output$fixed_site_conditionalInput_long <- renderUI({
     if(input$include_fixed_site){
-      numericInput("fixed_site_long", "Enter the longitude of the fixed site monitor in decimal degrees:", 0)
+      numericInput("fixed_site_long", "Enter the longitude of the fixed site monitor in decimal degrees (with 4+ decimal places):", 0)
     }
   })
   
@@ -273,7 +291,18 @@ server <- function(input, output) {
       "Uploaded correctly."
     }
   })
-  
+  output$inputfslat <- renderText({
+    if("numeric" %in% class(in_fs_lat())){
+      "Uploaded correctly and located within the data range."
+    }
+  })
+  output$inputfslong <- renderText({
+    if("numeric" %in% class(in_fs_long())){
+      "Uploaded correctly and located within the data range."
+    }
+  })
+
 }
 
 shinyApp(ui = ui, server = server)
+
