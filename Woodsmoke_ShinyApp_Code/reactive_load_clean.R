@@ -189,3 +189,31 @@
     
   })
   
+  
+# Reactive function to check fixed site latitude falls within the data
+  in_fs_lat <- reactive({
+    inFile <- input$fixed_site_lat
+    req(inFile)
+
+    validate(
+      need(between(inFile, min(in_aeth_data()[,'Latitude'], na.rm = T), max(in_aeth_data()[,'Latitude'], na.rm = T)),
+           "This latitude value is either outside the limits of the entered GPS data or in the incorrect format - please check value and formatting.")
+    )
+    
+    fixed_site_lat <- inFile
+
+  })
+
+# Reactive function to check fixed site longitude falls within the data
+  in_fs_long <- reactive({
+    inFile <- input$fixed_site_long
+    req(inFile)
+    
+    validate(
+      need(between(inFile, min(in_aeth_data()[,'Longitude'], na.rm = T), max(in_aeth_data()[,'Longitude'], na.rm = T)),
+           "This longitude value is either outside the limits of the entered GPS data or in the incorrect format - please check value and formatting.")
+    )
+    
+    fixed_site_long <- inFile
+    
+  })

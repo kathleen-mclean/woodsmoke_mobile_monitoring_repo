@@ -17,6 +17,7 @@ library(tidyverse)
 library(stringr)
 library(lubridate)
 select <- dplyr::select
+extract <- raster::extract
 
 # Load the Neph to PM2.5 conversions data
 load("data/Neph.to.BAM.PM25.Conversions.rdata")
@@ -52,9 +53,6 @@ ui <- fluidPage(
       conditionalPanel(condition = "input.tabPanels == 1",
                        fileInput("trip_list", "Choose TripList.csv file:",
                                  accept = c("text/csv", "text/comma-saparated-values, text/plain", ".csv")),
-                       checkboxInput("include_fixed_site", "Include a fixed site monitor?", value = F),
-                       uiOutput("fixed_site_conditionalInput_lat"),
-                       uiOutput("fixed_site_conditionalInput_long"),
                        
                        fileInput("AETH_data", 
                                  "Choose all Aethalometer .dat or .txt files:",
@@ -63,6 +61,10 @@ ui <- fluidPage(
                        
                        checkboxInput("include_NEPH", "Include Nephelometer data?", value = F),
                        uiOutput("NEPH_conditionalInput"),
+                       
+                       checkboxInput("include_fixed_site", "Add the location of a fixed site monitor?", value = F),
+                       uiOutput("fixed_site_conditionalInput_lat"),
+                       uiOutput("fixed_site_conditionalInput_long"),
                        
                        checkboxInput("min_lat", "Remove data with latitude smaller than:", value = F),
                        uiOutput("min_lat_conditionalInput"),
@@ -95,9 +97,9 @@ ui <- fluidPage(
         tabPanel("Documentation", value = 1,
                  h2("These instructions describe how to use this application:"),
                  p("1. Enter the TripList.csv file. This file should have 1 row per trip and provides summary information about the trip. The Trip List file must have column headings: Trip, Date, Community, Night/Day, Code, Start, End, Direction, DayOfWeek. The Date column must be formatted as MM/DD/YYYY."),
-                 p("2. Check the box if there is a fixed site monitor to include. Then, enter the latitude and longitude of the fixed site monitor, in decimal degrees."),
-                 p("3. Click 'Browse' and select all of the Aethalometer .dat or .txt files. The file names of input Aethalometer .dat or .txt files must have the following format: Trip1_AE33_YYYYMMDD.dat where YYYYMMDD is a date."),
-                 p("4. If Nephelometer data are available, check the box. Then click 'Browse' and select all of the Nephelometer .txt files. The file names of input Nephelometer .txt files must have the following format: Trip1_NEPH_YYYYMMDD.txt where YYYYMMDD is a date."),
+                 p("2. Click 'Browse' and select all of the Aethalometer .dat or .txt files. The file names of input Aethalometer .dat or .txt files must have the following format: Trip1_AE33_YYYYMMDD.dat where YYYYMMDD is a date."),
+                 p("3. If Nephelometer data are available, check the box. Then click 'Browse' and select all of the Nephelometer .txt files. The file names of input Nephelometer .txt files must have the following format: Trip1_NEPH_YYYYMMDD.txt where YYYYMMDD is a date."),
+                 p("4. Check the box if you want to add the location of a fixed site monitor to the map. Then, enter the latitude and longitude of the fixed site monitor, in decimal degrees with 4+ decimal places."),
                  p("5. If there is some data you wish to exclude from the map based on latitude and longitude, check the appropriate box(es) and enter the value(s) in decimal degrees. If not, leave the values as 0."),
                  p("6. Once all of the files have uploaded, click over to the 'Maps' tab. Please be patient while the map loads."),
                  
@@ -110,7 +112,13 @@ ui <- fluidPage(
                  textOutput("inputaeth"),
                  
                  uiOutput("NEPH_conditionalInput_text"),
-                 textOutput("inputneph")
+                 textOutput("inputneph"),
+                 
+                 uiOutput("fs_lat_conditionalInput_text"),
+                 textOutput("inputfslat"),
+                 
+                 uiOutput("fs_long_conditionalInput_text"),
+                 textOutput("inputfslong")
                  
                  ),
         tabPanel("Maps", value = 2,
@@ -170,15 +178,27 @@ server <- function(input, output) {
     }
   })
   
+  output$fs_lat_conditionalInput_text <- renderUI({
+    if(input$include_fixed_site){
+      h5("Fixed site latitude:")
+    }
+  })
+  
+  output$fs_long_conditionalInput_text <- renderUI({
+    if(input$include_fixed_site){
+      h5("Fixed site longitude:")
+    }
+  })
+  
   output$fixed_site_conditionalInput_lat <- renderUI({
     if(input$include_fixed_site){
-      numericInput("fixed_site_lat", "Enter the latitude of the fixed site monitor in decimal degrees:", 0)
+      numericInput("fixed_site_lat", "Enter the latitude of the fixed site monitor in decimal degrees (with 4+ decimal places):", 0)
     }
   })
   
   output$fixed_site_conditionalInput_long <- renderUI({
     if(input$include_fixed_site){
-      numericInput("fixed_site_long", "Enter the longitude of the fixed site monitor in decimal degrees:", 0)
+      numericInput("fixed_site_long", "Enter the longitude of the fixed site monitor in decimal degrees (with 4+ decimal places):", 0)
     }
   })
   
@@ -271,7 +291,18 @@ server <- function(input, output) {
       "Uploaded correctly."
     }
   })
-  
+  output$inputfslat <- renderText({
+    if("numeric" %in% class(in_fs_lat())){
+      "Uploaded correctly and located within the data range."
+    }
+  })
+  output$inputfslong <- renderText({
+    if("numeric" %in% class(in_fs_long())){
+      "Uploaded correctly and located within the data range."
+    }
+  })
+
 }
 
 shinyApp(ui = ui, server = server)
+

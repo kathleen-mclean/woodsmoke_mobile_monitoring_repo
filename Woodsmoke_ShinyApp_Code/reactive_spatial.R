@@ -125,50 +125,14 @@
     if(fixed_site_long != 0 & fixed_site_lat != 0 &
        !is.na(fixed_site_long) & !is.na(fixed_site_lat)){
     
-      trip_data <- all_trip_data() %>%
-        filter(!is.na(Latitude) & !is.na(Longitude))
+      # Convert fixed site coordinates to match raster layer
+      fs.location <- SpatialPoints(cbind(fixed_site_long, fixed_site_lat), proj4string = CRS("+proj=longlat +datum=WGS84"))
+      fs.location <- spTransform(fs.location, CRS("+init=epsg:3005"))
       
-      # Add fake record at fixed site
-      fixed_site <- trip_data[1,]
-      fixed_site$Trip <- 'FS'
-      fixed_site$Latitude <- fixed_site_lat
-      fixed_site$Longitude <- fixed_site_long
-      fixed_site$Z.BS.log <- 100000
-      fixed_site$Z.DC.log <- 100000
-      fixed_site_data <- rbind(trip_data, fixed_site)
+      # Extract the value of the cell that the fixed site coordinates fall within 
+      result <- extract(trip_raster(), fs.location)
       
-      shp <- SpatialPointsDataFrame(coords = data.frame(fixed_site_data$Longitude, fixed_site_data$Latitude),
-                                    data = fixed_site_data,
-                                    proj4string = CRS("+proj=longlat +datum=WGS84"))
-      shp <- spTransform(shp, CRS("+init=epsg:3005"))
-      
-      variable <- ifelse(input$include_NEPH & !is.null(input$varchoice), input$varchoice, "Z.DC.log")
-      
-      r.count <- rasterize(x = shp, y = create_raster(), field = shp@data[,variable],
-                           fun = 'count', na.rm = T)
-      r.mean <- rasterize(x = shp, y = create_raster(), field = shp@data[,variable],
-                          fun = mean, na.rm = T)
-      r.n.trips <- rasterize(x = shp, y = create_raster(), field = shp@data[,'Trip'],
-                             fun = function(x, ...){ length(unique(na.omit(x)))}, na.rm = T)
-      
-      # Set the values of cells which were missed on more than 1 trip to NA
-      r.mean[which(r.n.trips@data@values < max(r.n.trips@data@values, na.rm = T) - 1)] <- NA
-      r.count[which(r.n.trips@data@values < max(r.n.trips@data@values, na.rm = T) - 1)] <- NA
-      
-      # multiply the 2 rasters to create a mean*count layer
-      r.MxC <- r.mean * r.count
-      
-      # Use focal function to perform focal smoothing on the count and mean*count layers
-      #   Weighting is with an equally weighted 3x3 grid
-      r.count.SMOOTHED <- focal(r.count, w=matrix(1,3,3), fun=sum, na.rm = T)
-      r.MxC.SMOOTHED <- focal(r.MxC, w=matrix(1,3,3), fun=sum, na.rm = T)
-      
-      # Divide the smoothed mean*count by the smoothed count layer to effectively create a
-      #   mean layer focally smoothed using a 3x3 grid weighted by the cell counts
-      r.mean.SMOOTHED <- r.MxC.SMOOTHED / r.count.SMOOTHED
-      
-      # Identify raster cell number for the fixed site and get value
-      result <- trip_raster()@data@values[which.max(r.mean.SMOOTHED@data@values)]
+      result
     }
     
   })
