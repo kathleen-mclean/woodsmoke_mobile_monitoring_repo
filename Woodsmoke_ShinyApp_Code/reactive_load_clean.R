@@ -10,7 +10,9 @@
     
     validate(
       need(all(c("Date", "Community", "Night/Day", "Start", "End") %in% names(trip_data)) != F, 
-           "Trip list .csv file does not have the necessary columns.")
+           "Trip list .csv file does not have the necessary columns."),
+      need(all(grepl("20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]", trip_data$Date)) == T,
+           "Check date format in TripList.csv. The Date column must be formatted as MM/DD/YYYY.")
       )
     
     trip_data
