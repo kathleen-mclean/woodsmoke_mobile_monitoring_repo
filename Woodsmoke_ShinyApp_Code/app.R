@@ -249,7 +249,8 @@ server <- function(input, output) {
     grid.text(label = ifelse(variable == "Z.DC.log", 
                              "This map shows the average spatial patterns captured by an Aethalometer \nwhich measures a signal specific to woodsmoke called 'Delta C'.",
                              "This map shows the average spatial patterns captured by a Nephelometer \nwhich measures an estimate of total PM2.5 levels."), 
-              x = unit(0.04, "npc"), y = unit(0.78, "npc"), hjust = 0)
+              x = unit(0.04, "npc"), y = unit(0.85, "npc"), hjust = 0)
+              # x = unit(0.04, "npc"), y = unit(0.78, "npc"), hjust = 0)
   }, width = 1000, height = 1000)
   
   output$downloadMap <- downloadHandler(

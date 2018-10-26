@@ -139,24 +139,25 @@
   
   base_map <- reactive({
     
-    # get_map(location = c(min(all_trip_data()$Longitude, na.rm = T) - 0.01,
-    #                      min(all_trip_data()$Latitude, na.rm = T) - 0.01,
-    #                      max(all_trip_data()$Longitude, na.rm = T) + 0.01,
-    #                      max(all_trip_data()$Latitude, na.rm = T) + 0.01),
-    #         zoom = 13,
-    #         source = "stamen",
-    #         maptype = "toner-lite",
-    #         scale = "auto",
-    #         color = "bw")
+    get_map(location = c(min(all_trip_data()$Longitude, na.rm = T) - 0.01,
+                         min(all_trip_data()$Latitude, na.rm = T) - 0.01,
+                         max(all_trip_data()$Longitude, na.rm = T) + 0.01,
+                         max(all_trip_data()$Latitude, na.rm = T) + 0.01),
+            zoom = as.integer(input$mapzoom),
+            source = "stamen",
+            maptype = "terrain",
+            scale = "auto",
+            color = "color")
     
-    get_googlemap(center = c(lon = mean(c(min(all_trip_data()$Longitude, na.rm = T) - 0.01, 
-                                          max(all_trip_data()$Longitude, na.rm = T) + 0.01)),
-                             lat = mean(c(min(all_trip_data()$Latitude, na.rm = T) - 0.01, 
-                                          max(all_trip_data()$Latitude, na.rm = T) + 0.01))),
-                  zoom = as.integer(input$mapzoom),
-                  maptype = "roadmap",
-                  color = "color",
-                  style = "feature:road|element:labels|visibility:off&style=feature:administrative|element:labels|visibility:off&style=feature:poi|element:labels|visibility:off")
+    # Turned off because google switched to needing an API key with credit card information for billing
+    # get_googlemap(center = c(lon = mean(c(min(all_trip_data()$Longitude, na.rm = T) - 0.01, 
+    #                                       max(all_trip_data()$Longitude, na.rm = T) + 0.01)),
+    #                          lat = mean(c(min(all_trip_data()$Latitude, na.rm = T) - 0.01, 
+    #                                       max(all_trip_data()$Latitude, na.rm = T) + 0.01))),
+    #               zoom = as.integer(input$mapzoom),
+    #               maptype = "roadmap",
+    #               color = "color",
+    #               style = "feature:road|element:labels|visibility:off&style=feature:administrative|element:labels|visibility:off&style=feature:poi|element:labels|visibility:off")
     
   })
   
