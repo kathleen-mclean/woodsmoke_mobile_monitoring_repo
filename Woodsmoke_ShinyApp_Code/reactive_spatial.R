@@ -46,37 +46,59 @@
       filter(Trip %in% paste0("Trip", trips$Trip) & 
                !is.na(Latitude) & !is.na(Longitude))
     
-    shp <- SpatialPointsDataFrame(coords = data.frame(trip_data$Longitude, trip_data$Latitude),
-                                  data = trip_data,
-                                  proj4string = CRS("+proj=longlat +datum=WGS84"))
-    shp <- spTransform(shp, CRS("+init=epsg:3005"))
-
     variable <- ifelse(input$include_NEPH & !is.null(input$varchoice), input$varchoice, "Z.DC.log")
-
-    r.count <- rasterize(x = shp, y = create_raster(), field = shp@data[,variable],
-                         fun = 'count', na.rm = T)
-    r.mean <- rasterize(x = shp, y = create_raster(), field = shp@data[,variable],
-                        fun = mean, na.rm = T)
-    r.n.trips <- rasterize(x = shp, y = create_raster(), field = shp@data[,'Trip'],
-                           fun = function(x, ...){ length(unique(na.omit(x)))}, na.rm = T)
     
-    # Set the values of cells which were missed on more than 1 trip to NA
-    r.mean[which(r.n.trips@data@values < max(r.n.trips@data@values, na.rm = T) - 1)] <- NA
-    r.count[which(r.n.trips@data@values < max(r.n.trips@data@values, na.rm = T) - 1)] <- NA
+    # create empty raster stack and loop through individual trips - calculating the average pattern for each trip and storing it as a layer
+    s <- stack()
+    for (t in unique(trip_data$Trip)){
+      
+      shp <- SpatialPointsDataFrame(coords = data.frame(trip_data$Longitude[which(trip_data$Trip == t)], 
+                                                        trip_data$Latitude[which(trip_data$Trip == t)]),
+                                  data = trip_data[which(trip_data$Trip == t),],
+                                  proj4string = CRS("+proj=longlat +datum=WGS84"))
+      shp <- spTransform(shp, CRS("+init=epsg:3005")) 
+      
+      
+      # Calculate rasters for that trip of counts and means per cell
+      r.count <- rasterize(x = shp, y = create_raster, field = shp@data[,variable],
+                           fun = 'count', na.rm = T)
+      r.mean <- rasterize(x = shp, y = create_raster, field = shp@data[,variable],
+                          fun = mean, na.rm = T)
+      
+      # Set the cells where there are less than 1 record to NA
+      r.mean[which(r.count@data@values < 1)] <- NA
+      r.count[which(r.count@data@values < 1)] <- NA
+      
+      # multiply the 2 rasters to create a mean*count layer
+      r.MxC <- r.mean * r.count
+      
+      # Use focal function to perform focal smoothing on the count and mean*count layers
+      #   Weighting is with an equally weighted 3x3 grid
+      r.count.SMOOTHED <- focal(r.count, w=matrix(1,3,3), fun=sum, na.rm = T)
+      r.MxC.SMOOTHED <- focal(r.MxC, w=matrix(1,3,3), fun=sum, na.rm = T)
+      
+      # Divide the smoothed mean*count by the smoothed count layer to effectively create a 
+      #   mean layer focally smoothed using a 3x3 grid weighted by the cell counts
+      r.mean.SMOOTHED <- r.MxC.SMOOTHED / r.count.SMOOTHED
+      
+      # add trip name to layer
+      r.mean.SMOOTHED@data@names <- t
+      
+      # Add trip layer to the raster stack  
+      s <- stack(s, r.mean.SMOOTHED)
+    }
 
-    # multiply the 2 rasters to create a mean*count layer
-    r.MxC <- r.mean * r.count
-
-    # Use focal function to perform focal smoothing on the count and mean*count layers
-    #   Weighting is with an equally weighted 3x3 grid
-    r.count.SMOOTHED <- focal(r.count, w=matrix(1,3,3), fun=sum, na.rm = T)
-    r.MxC.SMOOTHED <- focal(r.MxC, w=matrix(1,3,3), fun=sum, na.rm = T)
-
-    # Divide the smoothed mean*count by the smoothed count layer to effectively create a
-    #   mean layer focally smoothed using a 3x3 grid weighted by the cell counts
-    r.mean.SMOOTHED <- r.MxC.SMOOTHED / r.count.SMOOTHED
-
-    r.mean.SMOOTHED
+    # Calculate average pattern across all trips in the stack
+    r.avg.pattern <- mean(s, na.rm = T)
+    
+    # Count the number of none NA values in each cell in the raster brick
+    rNA <- sum(!is.na(s))
+    
+    # Set the values of cells in the average pattern layer to NA if the number of none NA values 
+    #   in that cell were less than the total number of trips
+    r.avg.pattern[which(rNA@data@values < max(length(unique(trip_data$Trip))))] <- NA
+    
+    r.avg.pattern
   })
   
   trip_polygons <- reactive({
