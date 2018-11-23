@@ -60,9 +60,9 @@
       
       
       # Calculate rasters for that trip of counts and means per cell
-      r.count <- rasterize(x = shp, y = create_raster, field = shp@data[,variable],
+      r.count <- rasterize(x = shp, y = create_raster(), field = shp@data[,variable],
                            fun = 'count', na.rm = T)
-      r.mean <- rasterize(x = shp, y = create_raster, field = shp@data[,variable],
+      r.mean <- rasterize(x = shp, y = create_raster(), field = shp@data[,variable],
                           fun = mean, na.rm = T)
       
       # Set the cells where there are less than 1 record to NA
