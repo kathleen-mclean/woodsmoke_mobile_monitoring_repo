@@ -94,9 +94,11 @@
     # Count the number of none NA values in each cell in the raster brick
     rNA <- sum(!is.na(s))
     
+    min.trips <- ceiling(length(unique(trip_data$Trip))*(3/4))
+    
     # Set the values of cells in the average pattern layer to NA if the number of none NA values 
     #   in that cell were less than the total number of trips
-    r.avg.pattern[which(rNA@data@values < max(length(unique(trip_data$Trip))))] <- NA
+    r.avg.pattern[which(rNA@data@values < min.trips)] <- NA
     
     r.avg.pattern
   })
@@ -108,21 +110,17 @@
     rtp@data$id <- 1:nrow(rtp@data)   # add id column for join data after the fortify
     rtp <- spTransform(rtp, CRS("+proj=longlat +datum=WGS84"))
     
-    # convert to normal dataframe and merge the data to it
-    rtpFort <- fortify(rtp, data = rtp@data)
-    rtpFortMer <- merge(rtpFort, rtp@data, by.x = 'id', by.y = 'id')  # join data
+    rtp$Z_binned <- ifelse(rtp$layer < -1.5, 1,
+                           ifelse(rtp$layer >= -1.5 & rtp$layer < -1, 2,
+                                  ifelse(rtp$layer >= -1 & rtp$layer < -0.5, 3, 
+                                         ifelse(rtp$layer >= -0.5 & rtp$layer < 0, 4,
+                                                ifelse(rtp$layer >= 0 & rtp$layer < 0.5, 5,
+                                                       ifelse(rtp$layer >= 0.5 & rtp$layer < 1, 6,
+                                                              ifelse(rtp$layer >= 1 & rtp$layer < 1.5, 7,
+                                                                     ifelse(rtp$layer >= 1.5, 8, NA))))))))
+    rtp$Z_binned <- factor(rtp$Z_binned, levels = c(1:8))
     
-    binned_result <- rtpFortMer %>%
-      mutate(Z_binned = case_when(
-        layer < -1.5 ~ 1,
-        layer >= -1.5 & layer < -1 ~ 2,
-        layer >= -1 & layer < -0.5 ~ 3,
-        layer >= -0.5 & layer < 0 ~ 4,
-        layer >= 0 & layer < 0.5 ~ 5,
-        layer >= 0.5 & layer < 1 ~ 6,
-        layer >= 1 & layer < 1.5 ~ 7,
-        layer >= 1.5 ~ 8),
-        Z_binned = factor(Z_binned, levels = c(1:8)))
+    binned_result <- rtp
     
     binned_result
   })
@@ -159,75 +157,48 @@
     
   })
   
-  base_map <- reactive({
-    
-    get_map(location = c(min(all_trip_data()$Longitude, na.rm = T) - 0.01,
-                         min(all_trip_data()$Latitude, na.rm = T) - 0.01,
-                         max(all_trip_data()$Longitude, na.rm = T) + 0.01,
-                         max(all_trip_data()$Latitude, na.rm = T) + 0.01),
-            zoom = as.integer(input$mapzoom),
-            source = "stamen",
-            maptype = "terrain",
-            scale = "auto",
-            color = "color")
-    
-    # Turned off because google switched to needing an API key with credit card information for billing
-    # get_googlemap(center = c(lon = mean(c(min(all_trip_data()$Longitude, na.rm = T) - 0.01, 
-    #                                       max(all_trip_data()$Longitude, na.rm = T) + 0.01)),
-    #                          lat = mean(c(min(all_trip_data()$Latitude, na.rm = T) - 0.01, 
-    #                                       max(all_trip_data()$Latitude, na.rm = T) + 0.01))),
-    #               zoom = as.integer(input$mapzoom),
-    #               maptype = "roadmap",
-    #               color = "color",
-    #               style = "feature:road|element:labels|visibility:off&style=feature:administrative|element:labels|visibility:off&style=feature:poi|element:labels|visibility:off")
-    
-  })
+  # Function for a custom leaflet legend, from:
+  # https://stackoverflow.com/questions/52812238/custom-legend-with-r-leaflet-circles-and-squares-in-same-plot-legends
   
-  trip_map <- reactive({
+  addLegendCustom <- function(map, title, colors, labels, sizes, shapes, borders, opacity = 0.5){
+    
+    make_shapes <- function(colors, sizes, borders, shapes) {
+      shapes <- gsub("circle", "50%", shapes)
+      shapes <- gsub("square", "0%", shapes)
+      paste0(colors, "; width:", sizes, "px; height:", sizes, "px; border:3px solid ", borders, "; border-radius:", shapes)
+    }
+    make_labels <- function(sizes, labels) {
+      paste0("<div style='display: inline-block;height: ", 
+             sizes, "px;margin-top: 4px;line-height: ", 
+             sizes, "px;'>", labels, "</div>")
+    }
+    
+    legend_colors <- make_shapes(colors, sizes, borders, shapes)
+    legend_labels <- make_labels(sizes, labels)
+    
+    return(addLegend(map, title = title, colors = legend_colors, labels = legend_labels, opacity = opacity))
+  }
+  
+  leaflet_trip_map <- reactive({
     
     YlOrBr <- brewer.pal(n = 9, "YlOrBr")[2:9]
     variable <- ifelse(input$include_NEPH & !is.null(input$varchoice), input$varchoice, "Z.DC.log")
     legend_label <- ifelse(variable == "Z.DC.log", "Delta C", "PM2.5 Estimate")
     variable_label <- ifelse(variable == "Z.DC.log", "Aethalometer Map", "Nephelometer Map")
-    map_title <- in_trip_list()$Community
-    map_subtitle <- paste0("Mobile Monitoring \n", variable_label)
+    map_title <- paste0(unique(in_trip_list()$Community), " <br> Mobile Monitoring <br> ", variable_label)
     fixed_site_z_score <- ifelse(!is.null(fixed_site_value()), round(fixed_site_value(), 2), NA)
     convert_column <- ifelse(variable == "Z.DC.log", "Var", "PMP")
     var_values <- round(pm25_convert()[2:9, convert_column], 1)
     pm_legend_val <- round(pm25_convert()[1, convert_column], 1)
     
-    final_map <- ggmap(base_map()) +
-      geom_polygon(data = trip_polygons(), 
-                   aes(x = long, y = lat, group = group, fill = Z_binned), 
-                   alpha = 0.9, 
-                   size = 0) + ## size = 0 to remove the polygon outlines
-      scale_fill_manual(values = YlOrBr,
-                        guide = guide_legend(title = paste0("Mean Z Score / ", legend_label, " (", "\u03BC", "g/m", "\u00B3", ")")),
-                        labels = c(paste0("  < -1.5          / < ", var_values[1]),
-                                   paste0("    -1.5 - -1.0   / ", var_values[1], " - ", var_values[2]),
-                                   paste0("    -1.0 - -0.5   / ", var_values[2], " - ", var_values[3]),
-                                   paste0("    -0.5 -  0.0   / ", var_values[3], " - ", var_values[4]), 
-                                   paste0("     0.0 -  0.5   / ", var_values[4], " - ", var_values[5]), 
-                                   paste0("     0.5 -  1.0   / ", var_values[5], " - ", var_values[6]), 
-                                   paste0("     1.0 -  1.5   / ", var_values[6], " - ", var_values[7]),
-                                   paste0("     1.5 +        / ", var_values[7], " +")),
-                        drop = F) +
-      geom_polygon(data = trip_polygons_high(), 
-                   aes(x = long, y = lat, group = group, fill = Z_binned), 
-                   alpha = 1, 
-                   size = 0, 
-                   show.legend = F) +
-      theme(axis.title = element_blank(),
-            axis.text = element_blank(),
-            axis.ticks = element_blank(),
-            legend.text = element_text(size = 14),
-            legend.title = element_text(size = 16),
-            plot.title = element_text(size = 20, hjust = 0.5),
-            plot.subtitle = element_text(size = 20, hjust = 0.5),
-            legend.position = "right",
-            legend.box = "vertical",
-            legend.key.height = unit(40, units = "pt")) +
-      ggtitle(map_title, subtitle = map_subtitle)
+    polygons_df <- trip_polygons()
+    mapbox_url <- paste0("https://api.mapbox.com/styles/v1/kathleenmclean/cjplrxlkx0fjy2sqnld49tuau/tiles/256/{z}/{x}/{y}@2x?access_token=pk.eyJ1Ijoia2F0aGxlZW5tY2xlYW4iLCJhIjoiY2pvcWdlYjR6MDRxNTN4cWlsaWZwN3VnMiJ9.OzAnOe2DjHW9dmBuExCU8Q")
+    lat_center <- mean(c(min(all_trip_data()$Latitude, na.rm = T) - 0.01, 
+                         max(all_trip_data()$Latitude, na.rm = T) + 0.01))
+    long_center <- mean(c(min(all_trip_data()$Longitude, na.rm = T) - 0.01, 
+                          max(all_trip_data()$Longitude, na.rm = T) + 0.01))
+    pal <- colorFactor(palette = YlOrBr,
+                       domain = polygons_df[["Z_binned"]])
     
     if(is.null(input$fixed_site_long) & is.null(input$fixed_site_lat)){
       fixed_site_long = 0
@@ -237,24 +208,83 @@
       fixed_site_lat = input$fixed_site_lat
     }
     
+    fixed_site_df <- data.frame(long = fixed_site_long,
+                                lat = fixed_site_lat,
+                                type = factor("Fixed Site Monitor"))
+    pal2 <- colorFactor(palette = c("#000000"),
+                        domain = fixed_site_df$type)
+    
+    tag.map.title <- tags$style(HTML("
+    .leaflet-control.map-title { 
+      transform: translate(-50%,20%);
+      position: fixed !important;
+      left: 50%;
+      text-align: center;
+      padding-left: 10px; 
+      padding-right: 10px; 
+      background: rgba(255,255,255,0.75);
+      font-weight: bold;
+      font-size: 20px;
+    }
+    "))
+    
+    title <- tags$div(
+      tag.map.title, HTML(map_title)
+    ) 
+    
+    map_attr <- "&copy; <a href='https://www.mapbox.com/about/maps/'>Mapbox</a> &copy; <a href='http://www.openstreetmap.org/copyright'>OpenStreetMap</a> <strong><a href='https://www.mapbox.com/map-feedback/' target='_blank'>Improve this map</a></strong>"
+    
+    final_map <- leaflet() %>%
+      addTiles(urlTemplate = mapbox_url, attribution = map_attr) %>%
+      setView(lng = long_center, lat = lat_center, zoom = as.integer(input$mapzoom)) %>%
+      addPolygons(data = polygons_df,
+                  fillColor = ~pal(Z_binned),
+                  fillOpacity = 1,
+                  stroke = F) %>%
+      addLegend("topright",
+                colors = YlOrBr,
+                title = paste0("Mean Z Score / ", legend_label, " (", "\u03BC", "g/m", "\u00B3", ")"),
+                opacity = 1,
+                labels = c(paste0("  < -1.5          / < ", var_values[1]),
+                           paste0("    -1.5 - -1.0   / ", var_values[1], " - ", var_values[2]),
+                           paste0("    -1.0 - -0.5   / ", var_values[2], " - ", var_values[3]),
+                           paste0("    -0.5 -  0.0   / ", var_values[3], " - ", var_values[4]),
+                           paste0("     0.0 -  0.5   / ", var_values[4], " - ", var_values[5]),
+                           paste0("     0.5 -  1.0   / ", var_values[5], " - ", var_values[6]),
+                           paste0("     1.0 -  1.5   / ", var_values[6], " - ", var_values[7]),
+                           paste0("     1.5 +        / ", var_values[7], " +"))) %>%
+      addControl(title, position = "topleft", className="map-title") %>%
+      addControl(ifelse(variable == "Z.DC.log", 
+                        "This map shows the average spatial patterns captured by an Aethalometer \nwhich measures a signal specific to woodsmoke called 'Delta C'.",
+                        "This map shows the average spatial patterns captured by a Nephelometer \nwhich measures an estimate of total PM2.5 levels."),
+                 position = "bottomleft")
+
     if(fixed_site_long != 0 & fixed_site_lat != 0 &
        !is.na(fixed_site_long) & !is.na(fixed_site_lat)){
-      final_map <- final_map +
-        geom_point(data = data.frame(long = fixed_site_long,
-                                     lat = fixed_site_lat,
-                                     type = "Fixed site monitor"),
-                   aes(x = long, y = lat, shape = type),
-                   size = 4, fill = "black") +
-        scale_shape_manual(name = "",
-                           labels = paste0("Monitoring Station\n Mean Z Score = ",
-                                           fixed_site_z_score, "\n", legend_label,
-                                           " = ", pm_legend_val, " (", "\u03BC", "g/m", "\u00B3", ")"),
-                           values = c(5),
-                           guide = guide_legend(order = 0))
+      final_map <- final_map %>%
+        addCircleMarkers(data = fixed_site_df, radius = 7, 
+                         opacity = 1, stroke = T, weight = 4,
+                         color = ~pal2(type), fill = F) %>%
+        addLegendCustom(colors = c("white"), 
+                  title = "Monitoring Station",
+                  sizes = c(20),
+                  shapes = c("circle"),
+                  borders = c("#000000"),
+                  opacity = 1,
+                  labels = paste0("Mean Z Score = ", fixed_site_z_score, " / ", 
+                                  legend_label, " = ", pm_legend_val, " (", "\u03BC", "g/m", "\u00B3", ")"))
     }
     
-    # final_map_g <- ggplotGrob(final_map)
-    # str(final_map_g)
-    
     final_map
+  })
+  
+  # This function gets the leaflet map for the downloaded file at the same 
+  # center and zoom as whatever the user has chosen in the viewing pane
+  
+  user_leaflet_map <- reactive({
+    
+    leaflet_trip_map() %>%
+      setView(lng = input$map_center$lng, 
+              lat = input$map_center$lat,
+              zoom = input$map_zoom)
   })

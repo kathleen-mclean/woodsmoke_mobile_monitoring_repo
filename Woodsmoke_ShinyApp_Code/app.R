@@ -16,6 +16,8 @@ library(gridExtra)
 library(tidyverse)
 library(stringr)
 library(lubridate)
+library(leaflet)
+library(mapview)
 select <- dplyr::select
 extract <- raster::extract
 
@@ -75,6 +77,7 @@ ui <- fluidPage(
                        checkboxInput("max_long", "Remove data with longitude larger than:", value = F),
                        uiOutput("max_long_conditionalInput")
       ),
+      # Left side panel on the Maps tab
       conditionalPanel(condition = "input.tabPanels == 2",
                        radioButtons("mapchoice",
                                     "Map for:", 
@@ -83,9 +86,12 @@ ui <- fluidPage(
                        uiOutput("NEPH_conditional_varchoice"),
                        radioButtons("mapzoom",
                                     "Choose zoom level of the map tiles:",
-                                    choices = 11:13,
-                                    selected = 12),
-                       downloadButton('downloadMap', "Download map")
+                                    choices = 12:14,
+                                    selected = 13),
+                       downloadButton('downloadPNGMap', "Download map (.png format)"),
+                       p(""),
+                       downloadButton('downloadPDFMap', "Download map (.pdf format)"),
+                       p("It will take several seconds after you click the download button for something to happen...")
                        )
     ),
     
@@ -129,7 +135,8 @@ ui <- fluidPage(
                    
                    p("For each trip, the values from the instruments were converted to Z scores which compares each value to the average of that trip (e.g. a Z score of 0 means that value was equal to the mean of that trip, a Z score of 1 means the value was one standard deviation higher than the mean, and a Z score of -1.5 means the value was one and a half standard deviations less than the mean). The Z scores from all trips were then averaged across the route and this is what is shown in the map. Because these Z scores are calculated on an exponential scale, we show Delta C or PM2.5 concentration estimates on the legend corresponding to what these average Z scores were roughly equal to across the monitoring hours. This is to add context to the shading and make it easier to understand, but remember these are just estimates and are intended to be used to compare two spots on the map rather than taking them as a hard value."),
                    
-                   plotOutput("current_map")
+                   # plotOutput("map")
+                   leafletOutput("map", height = 750)
                    
                  )),
         id = "tabPanels")
@@ -235,48 +242,53 @@ server <- function(input, output) {
     }
   })
   
-  output$current_map <- renderPlot({
-    
-    variable <- ifelse(input$include_NEPH & !is.null(input$varchoice), input$varchoice, "Z.DC.log")
+  output$map <- renderLeaflet({
     
     withProgress(message = "Map loading", value = 0.5, {
-      
-      currentmap <- trip_map()
-      
-    })
+
+          currentmap <- leaflet_trip_map()
+
+        })
     
-    print(currentmap)
-    grid.text(label = ifelse(variable == "Z.DC.log", 
-                             "This map shows the average spatial patterns captured by an Aethalometer \nwhich measures a signal specific to woodsmoke called 'Delta C'.",
-                             "This map shows the average spatial patterns captured by a Nephelometer \nwhich measures an estimate of total PM2.5 levels."), 
-              x = unit(0.04, "npc"), y = unit(0.85, "npc"), hjust = 0)
-              # x = unit(0.04, "npc"), y = unit(0.78, "npc"), hjust = 0)
-  }, width = 1000, height = 1000)
+  })
   
-  output$downloadMap <- downloadHandler(
+  output$downloadPNGMap <- downloadHandler(
     filename = function(){
       paste0(in_trip_list()$Community, 
             "_Map_",
-            ifelse(input$varchoice == "Z.DC.log", "DeltaC", "PM25"),
+            ifelse(input$varchoice == "Z.DC.log" | is.null(input$varchoice), "DeltaC", "PM25"),
             "_",
             ifelse(input$mapchoice == "night", "NightTrips", "AllTrips"),
-            ".pdf")
+            ".png")
     },
     
     content = function(file){
-      variable <- ifelse(input$include_NEPH & !is.null(input$varchoice), input$varchoice, "Z.DC.log")
       
-      pdf(file, width = 11, height = 8.5)
-      print(trip_map())
-      grid.text(label = ifelse(variable == "Z.DC.log", 
-                               "This map shows the average spatial patterns captured by an Aethalometer \nwhich measures a signal specific to woodsmoke called 'Delta C'.",
-                               "This map shows the average spatial patterns captured by a Nephelometer \nwhich measures an estimate of total PM2.5 levels."), 
-                x = unit(0.04, "npc"), y = unit(0.78, "npc"), hjust = 0)
-      dev.off()
+      mapshot(x = user_leaflet_map(),
+              file = file)
+      
     }
   )
   
-  # Show the head of the data files in the first tab panel
+  output$downloadPDFMap <- downloadHandler(
+    filename = function(){
+      paste0(in_trip_list()$Community, 
+             "_Map_",
+             ifelse(input$varchoice == "Z.DC.log" | is.null(input$varchoice), "DeltaC", "PM25"),
+             "_",
+             ifelse(input$mapchoice == "night", "NightTrips", "AllTrips"),
+             ".pdf")
+    },
+    
+    content = function(file){
+      
+      mapshot(x = user_leaflet_map(),
+              file = file)
+      
+    }
+  )
+  
+  # Input data checks
   output$inputtriplist <- renderText({
     if("data.frame" %in% class(in_trip_list())){
       "Uploaded correctly."
