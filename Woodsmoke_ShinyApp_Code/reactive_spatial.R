@@ -127,7 +127,7 @@
   
   trip_polygons_high <- reactive({
     
-    high <- filter(trip_polygons(), Z_binned %in% c(7, 8))
+    high <- trip_polygons()[trip_polygons()$Z_binned %in% c(7, 8),]
     
     high
   })
@@ -192,6 +192,7 @@
     pm_legend_val <- round(pm25_convert()[1, convert_column], 1)
     
     polygons_df <- trip_polygons()
+    polygons_high_df <- trip_polygons_high()
     mapbox_url <- paste0("https://api.mapbox.com/styles/v1/kathleenmclean/cjplrxlkx0fjy2sqnld49tuau/tiles/256/{z}/{x}/{y}@2x?access_token=pk.eyJ1Ijoia2F0aGxlZW5tY2xlYW4iLCJhIjoiY2pvcWdlYjR6MDRxNTN4cWlsaWZwN3VnMiJ9.OzAnOe2DjHW9dmBuExCU8Q")
     lat_center <- mean(c(min(all_trip_data()$Latitude, na.rm = T) - 0.01, 
                          max(all_trip_data()$Latitude, na.rm = T) + 0.01))
@@ -239,7 +240,7 @@
       setView(lng = long_center, lat = lat_center, zoom = as.integer(input$mapzoom)) %>%
       addPolygons(data = polygons_df,
                   fillColor = ~pal(Z_binned),
-                  fillOpacity = 1,
+                  fillOpacity = 0.9,
                   stroke = F) %>%
       addLegend("topright",
                 colors = YlOrBr,
@@ -253,6 +254,10 @@
                            paste0("     0.5 -  1.0   / ", var_values[5], " - ", var_values[6]),
                            paste0("     1.0 -  1.5   / ", var_values[6], " - ", var_values[7]),
                            paste0("     1.5 +        / ", var_values[7], " +"))) %>%
+      addPolygons(data = polygons_high_df,
+                  fillColor = ~pal(Z_binned),
+                  fillOpacity = 1,
+                  stroke = F) %>%
       addControl(title, position = "topleft", className="map-title") %>%
       addControl(ifelse(variable == "Z.DC.log", 
                         "This map shows the average spatial patterns captured by an Aethalometer \nwhich measures a signal specific to woodsmoke called 'Delta C'.",
