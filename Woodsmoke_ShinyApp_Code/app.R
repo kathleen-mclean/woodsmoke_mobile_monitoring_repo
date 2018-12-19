@@ -17,8 +17,10 @@ library(stringr)
 library(lubridate)
 library(leaflet)
 library(mapview)
+library(webshot)
 select <- dplyr::select
 extract <- raster::extract
+if (is.null(suppressMessages(webshot:::find_phantom()))) { webshot::install_phantomjs() }
 
 # Load the Neph to PM2.5 conversions data
 load("data/Neph.to.BAM.PM25.Conversions.rdata")
