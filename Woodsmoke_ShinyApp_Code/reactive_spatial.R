@@ -240,12 +240,12 @@
       setView(lng = long_center, lat = lat_center, zoom = as.integer(input$mapzoom)) %>%
       addPolygons(data = polygons_df,
                   fillColor = ~pal(Z_binned),
-                  fillOpacity = 0.8,
+                  fillOpacity = input$mapopacity,
                   stroke = F) %>%
       addLegend("topright",
                 colors = YlOrBr,
                 title = paste0("Mean Z Score / ", legend_label, " (", "\u03BC", "g/m", "\u00B3", ")"),
-                opacity = 0.8,
+                opacity = input$mapopacity,
                 labels = c(paste0("  < -1.5          / < ", var_values[1]),
                            paste0("    -1.5 - -1.0   / ", var_values[1], " - ", var_values[2]),
                            paste0("    -1.0 - -0.5   / ", var_values[2], " - ", var_values[3]),
