@@ -240,12 +240,12 @@
       setView(lng = long_center, lat = lat_center, zoom = as.integer(input$mapzoom)) %>%
       addPolygons(data = polygons_df,
                   fillColor = ~pal(Z_binned),
-                  fillOpacity = 0.9,
+                  fillOpacity = 0.8,
                   stroke = F) %>%
       addLegend("topright",
                 colors = YlOrBr,
                 title = paste0("Mean Z Score / ", legend_label, " (", "\u03BC", "g/m", "\u00B3", ")"),
-                opacity = 1,
+                opacity = 0.8,
                 labels = c(paste0("  < -1.5          / < ", var_values[1]),
                            paste0("    -1.5 - -1.0   / ", var_values[1], " - ", var_values[2]),
                            paste0("    -1.0 - -0.5   / ", var_values[2], " - ", var_values[3]),
@@ -254,10 +254,10 @@
                            paste0("     0.5 -  1.0   / ", var_values[5], " - ", var_values[6]),
                            paste0("     1.0 -  1.5   / ", var_values[6], " - ", var_values[7]),
                            paste0("     1.5 +        / ", var_values[7], " +"))) %>%
-      addPolygons(data = polygons_high_df,
-                  fillColor = ~pal(Z_binned),
-                  fillOpacity = 1,
-                  stroke = F) %>%
+      # addPolygons(data = polygons_high_df,
+      #             fillColor = ~pal(Z_binned),
+      #             fillOpacity = 0.9,
+      #             stroke = F) %>%
       addControl(title, position = "topleft", className="map-title") %>%
       addControl(ifelse(variable == "Z.DC.log", 
                         "This map shows the average spatial patterns captured by an Aethalometer \nwhich measures a signal specific to woodsmoke called 'Delta C'.",
