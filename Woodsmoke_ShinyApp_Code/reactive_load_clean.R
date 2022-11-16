@@ -9,7 +9,7 @@
                           col_types = cols(Date = col_date(format = "%m/%d/%Y")))
     
     validate(
-      need(all(c("Date", "Community", "Night/Day", "Start", "End") %in% names(trip_data)) != F, 
+      need(all(c("Trip", "Date", "Community", "Night/Day", "Start", "End") %in% names(trip_data)) != F, 
            "Trip list .csv file does not have the necessary columns."),
       need(all(grepl("20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]", trip_data$Date)) == T,
            "Check date format in TripList.csv. The Date column must be formatted as MM/DD/YYYY.")
@@ -127,7 +127,7 @@
       }
       
       # Create expected length time sequence
-      current_trip_df <- data.frame(seq(start.time, end.time, 1))
+      current_trip_df <- data.frame(seq.POSIXt(start.time, end.time, 1))
       colnames(current_trip_df) <- "DateTime"
       
       # Add column with TripCode
