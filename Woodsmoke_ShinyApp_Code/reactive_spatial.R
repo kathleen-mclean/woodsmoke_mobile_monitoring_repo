@@ -49,6 +49,7 @@
     variable <- ifelse(input$include_NEPH & !is.null(input$varchoice), input$varchoice, "Z.DC.log")
     
     # create empty raster stack and loop through individual trips - calculating the average pattern for each trip and storing it as a layer
+    
     s <- stack()
     for (t in unique(trip_data$Trip)){
       
@@ -91,14 +92,19 @@
     # Calculate average pattern across all trips in the stack
     r.avg.pattern <- mean(s, na.rm = T)
     
-    # Count the number of none NA values in each cell in the raster brick
-    rNA <- sum(!is.na(s))
-    
-    min.trips <- ceiling(length(unique(trip_data$Trip))*(3/4))
-    
-    # Set the values of cells in the average pattern layer to NA if the number of none NA values 
-    #   in that cell were less than the total number of trips
-    r.avg.pattern[which(rNA@data@values < min.trips)] <- NA
+    # Count the number of non NA values in each cell in the raster stack if there 
+    # is more than one trip
+    if(length(unique(trip_data$Trip)) > 1){
+      
+      rNA <- sum(!is.na(s))
+      
+      min.trips <- ceiling(length(unique(trip_data$Trip))*(3/4))
+      
+      # Set the values of cells in the average pattern layer to NA if the number of non NA values 
+      #   in that cell were less than the total number of trips
+      r.avg.pattern[which(rNA@data@values < min.trips)] <- NA
+      
+    }
     
     r.avg.pattern
   })
